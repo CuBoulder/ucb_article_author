@@ -1,0 +1,32 @@
+<?php
+
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\taxonomy\Entity\Term;
+
+/**
+ * Implements hook_node_insert().
+ */
+function ucb_article_author_node_insert(EntityInterface $node) {
+  // Check if the inserted entity is of the 'Person Page' content type.
+  if ($node->getEntityTypeId() === 'node' && $node->bundle() === 'ucb_person') {
+
+    // Extract the first and last name from the entity's title.
+    $title = $node->getTitle();
+
+    // Create a taxonomy term using the extracted name.
+    $term = Term::create([
+      'vid' => 'byline',
+      'name' => $title,
+      'field_author_person_page' => [
+        'target_id' => $node->id(),
+      ],
+    ]);
+
+    // Save the taxonomy term to update the entity reference field.
+    $term->save();
+  }
+}
+
+
+?>
+
