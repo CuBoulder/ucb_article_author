@@ -1,32 +1,41 @@
 <?php
 
-use Drupal\Core\Entity\EntityInterface;
+use Drupal\node\Entity\Node;
 use Drupal\taxonomy\Entity\Term;
 
 /**
- * Implements hook_node_insert().
+ * Implements hook_cron().
  */
-function ucb_article_author_node_insert(EntityInterface $node) {
-  // Check if the inserted entity is of the 'Person Page' content type.
-  if ($node->getEntityTypeId() === 'node' && $node->bundle() === 'ucb_person') {
+function ucb_article_author_cron() {
+  $nids = \Drupal::entityQuery('node')
+    ->condition('type', 'ucb_person')
+    ->notExists('field_processed')
+    ->accessCheck(FALSE) // Skip access check.
+    ->execute();
 
-    // Extract the first and last name from the entity's title.
+  // Log the nodes being fetched.
+  Drupal::logger('ucb_article_author')->notice('Nodes fetched: @nids', ['@nids' => implode(',', $nids)]);
+
+  foreach ($nids as $nid) {
+    $node = Node::load($nid);
     $title = $node->getTitle();
+    $terms = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->loadByProperties(['name' => $title, 'vid' => 'byline']);
 
-    // Create a taxonomy term using the extracted name.
-    $term = Term::create([
-      'vid' => 'byline',
-      'name' => $title,
-      'field_author_person_page' => [
-        'target_id' => $node->id(),
-      ],
-    ]);
+    if (empty($terms)) {
+      $term = Term::create([
+        'vid' => 'byline',
+        'name' => $title,
+        'field_author_person_page' => [
+          'target_id' => $node->id(),
+        ],
+      ]);
+      $term->save();
 
-    // Save the taxonomy term to update the entity reference field.
-    $term->save();
+      // Log term creation.
+      Drupal::logger('ucb_article_author')->notice('Author Term created for Node ID: @nid, Term Name: @name', ['@nid' => $nid, '@name' => $title]);
+    }
+
+    $node->set('field_processed', 1);
+    $node->save();
   }
 }
-
-
-?>
-
