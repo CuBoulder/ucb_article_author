@@ -9,10 +9,8 @@ use Drupal\taxonomy\Entity\Term;
 function ucb_article_author_node_insert(EntityInterface $node) {
   // Check if the inserted entity is of the 'Person Page' content type.
   if ($node->getEntityTypeId() === 'node' && $node->bundle() === 'ucb_person') {
-
     // Extract the first and last name from the entity's title.
     $title = $node->getTitle();
-
     // Create a taxonomy term using the extracted name.
     $term = Term::create([
       'vid' => 'byline',
@@ -21,12 +19,7 @@ function ucb_article_author_node_insert(EntityInterface $node) {
         'target_id' => $node->id(),
       ],
     ]);
-
     // Save the taxonomy term to update the entity reference field.
     $term->save();
   }
 }
-
-
-?>
-
