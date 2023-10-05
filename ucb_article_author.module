@@ -2,31 +2,30 @@
 
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\taxonomy\Entity\Term;
+use Drupal\node\Entity\Node;
 
 /**
- * Implements hook_node_insert().
+ * Implements hook_taxonomy_term_insert().
  */
-function ucb_article_author_node_insert(EntityInterface $node) {
-  // Check if the inserted entity is of the 'Person Page' content type.
-  if ($node->getEntityTypeId() === 'node' && $node->bundle() === 'ucb_person') {
+function ucb_article_author_taxonomy_term_insert(EntityInterface $term) {
+  // Check if the inserted term is a 'byline' taxonomy term
+  if ($term->getEntityTypeId() === 'taxonomy_term' && $term->bundle() === 'byline') {
+    $term_name = $term->getName();
 
-    // Extract the first and last name from the entity's title.
-    $title = $node->getTitle();
+    // Query to find a 'ucb_person' node with the same title.
+    $query = \Drupal::entityQuery('node')
+      ->condition('type', 'ucb_person')
+      ->condition('title', $term_name)
+      ->range(0, 1)  // We only need the first result.
+      ->accessCheck(FALSE);  // Skip access checks, needed or WSOD
 
-    // Create a taxonomy term using the extracted name.
-    $term = Term::create([
-      'vid' => 'byline',
-      'name' => $title,
-      'field_author_person_page' => [
-        'target_id' => $node->id(),
-      ],
-    ]);
+    $node_ids = $query->execute();
 
-    // Save the taxonomy term to update the entity reference field.
-    $term->save();
+    // If a 'ucb_person' node with the same title is found.
+    if (!empty($node_ids)) {
+      $node_id = reset($node_ids);
+      $term->set('field_author_person_page', ['target_id' => $node_id]);
+      $term->save();
+    }
   }
 }
-
-
-?>
-
